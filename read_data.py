@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset, DataLoader
 import pickle
 import cv2
-from python_pfm import readPFM
+from utils.python_pfm import readPFM
 import numpy as np
 import torch
 import params

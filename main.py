@@ -10,7 +10,7 @@ import params
 from read_data import SceneFlow
 import torch.optim as optim
 
-from python_pfm import *
+from utils.python_pfm import *
 
 import matplotlib.pyplot as plt
 
