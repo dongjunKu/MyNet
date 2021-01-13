@@ -14,4 +14,5 @@ class Params():
         self.batch_size = 1
         
         self.train_disparity = 192
+        self.train_size = (256, 512)
         self.test_disparity = 320

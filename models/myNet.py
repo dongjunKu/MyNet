@@ -123,6 +123,8 @@ class BodyFst(nn.Module):
 
         cost_volumes = []
         for i, (left_feature, right_feature) in enumerate(zip(left_features, right_features)):
+            left_feature = F.normalize(left_feature, p=2)
+            right_feature = F.normalize(right_feature, p=2)
             dot_volume = left_feature.permute(0,2,3,1).matmul(right_feature.permute(0,2,1,3)) # dot product, (N, H, W, W)
             ww2wd = []
             for j in range(max_disparity // (2**i)):
