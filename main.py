@@ -6,22 +6,25 @@ import torchvision
 import torchvision.transforms as transforms
 import cv2
 import numpy as np
+import sys
+np.set_printoptions(threshold=sys.maxsize)
 
 import params
 from dataloader.read_data import SceneFlow
 import torch.optim as optim
 
 from utils.python_pfm import *
+from utils.util import *
 from models.myNet import *
 
 import matplotlib.pyplot as plt
 
 p = params.Params()
 
-head = HeadPac([3, 64, 128, 256, 512, 1024])
-body = BodyFst(p.train_disparity)
+head = HeadPac(p.feature_num_list).to(p.device)
+body = BodyFst(p.train_disparity).to(p.device)  
 
-criterion = nn.HingeEmbeddingLoss(margin=0.2, reduction='mean')
+criterion = HingeLoss(margin=0.2, reduction='mean').to(p.device)
 optimizer = torch.optim.Adam(head.parameters(), lr=0.001)
 
 transform = transforms.Compose([transforms.ToTensor()])
@@ -31,36 +34,63 @@ transform = transforms.Compose([transforms.ToTensor()])
 dataset = SceneFlow("train", transform=transform, crop_size=p.train_size)
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=p.batch_size, shuffle=True, num_workers=1)
 
-for epoch in range(5):
+pre_epoch = 0
+pre_step = 0
+try:
+    checkpoint = torch.load(p.SAVE_PATH + 'checkpoint.tar')
+    head.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    pre_epoch = checkpoint['epoch']
+    pre_step = checkpoint['step']
+    print("restored successfully.. start from {} epoch {} step".format(pre_epoch, pre_step))
+except:
+    print("can't find saved model")
+
+if p.mode == 'train':
+    head.train()
+if p.mode == 'eval':
+    head.eval()
+
+for epoch in range(pre_epoch, 5):
     data_iter = iter(dataloader)
 
-    for step in range(len(dataloader)):
+    for step in range(pre_step, len(dataloader)):
         data = next(data_iter)
         
-        featuresL, kernelsL = head(data['imL'], multiscale=True)
-        featuresR, kernelsR = head(data['imR'], multiscale=True)
+        featuresL, kernelsL = head(data['imL'].to(p.device), multiscale=True)
+        featuresR, kernelsR = head(data['imR'].to(p.device), multiscale=True)
         cost_vols = body(featuresL, featuresR, kernelsL)
 
-        gt = data['dispL']
-        gt[gt > p.train_disparity - 1] = p.train_disparity - 1 # 최대 넘는 값 처리.
+        gt = data['dispL'].to(p.device)
+        masks = []
         disps = []
         for i in range(len(cost_vols)):
-            eye = torch.eye(p.train_disparity // 2**i)
             disp = (F.interpolate(gt, scale_factor=1/2**i, mode='bilinear', align_corners=False))
+            mask = (disp < p.train_disparity - 0.5).float()
+            disp *= mask
+            masks.append(mask)
             disp = ((disp + 0.5) // 2**i).long() # (N, 1, H, W)
-            disp = torch.squeeze(eye[disp].transpose(1,-1), -1) # 원 핫
+            disp = one_hot(disp, p.train_disparity // 2**i, dim=1)
             disps.append(disp)
 
         losses = []
-        for cost_vol, disp in zip(cost_vols, disps):
-            losses.append(criterion(cost_vol, disp))
+        for cost_vol, disp, mask in zip(cost_vols, disps, masks):
+            losses.append(criterion(cost_vol, disp, mask))
         loss = sum(losses)
-
-        print("step: ", step)
-
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
+        print("step:", step, ", loss1: {}, loss2: {}, loss3: {}, loss4: {}, loss5: {}".format(*losses))
+        # print(cost_vols[-1].shape)
+        # print(cost_vols[-1])
+
+        if step % 100 == 0:
+            torch.save({'epoch': epoch,
+                        'step': step + 1,
+                        'model_state_dict': head.state_dict(),
+                        'optimizer_state_dict': optimizer.state_dict()},
+                        p.SAVE_PATH + 'checkpoint.tar')
 
         """
         print(data['imL'].numpy().shape)
@@ -71,4 +101,6 @@ for epoch in range(5):
         plt.subplot(2,2,4), plt.imshow(np.squeeze(data['dispR']), vmin=0)
         plt.show()
         """
+
+    pre_step = 0
         

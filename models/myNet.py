@@ -5,6 +5,95 @@ import torch.nn.functional as F
 
 import models.pac as pac
 
+class Head(nn.Module):
+    def __init__(self, num_channels=[1, 64, 128, 256, 512, 1024]):
+        super(Head, self).__init__()
+        # conv1
+        self.conv1_1 = nn.Conv2d(num_channels[0], num_channels[1], 3, padding=1)
+        self.relu1_1 = nn.ReLU(inplace=True)
+        self.conv1_2 = nn.Conv2d(num_channels[1], num_channels[1], 3, padding=1)
+        self.relu1_2 = nn.ReLU(inplace=True)
+        
+        self.conv1_3 = nn.Conv2d(num_channels[1], num_channels[1], 3, stride=2, padding=1)  # 1/2
+        self.relu1_3 = nn.ReLU(inplace=True)
+
+        # conv2
+        self.conv2_1 = nn.Conv2d(num_channels[1], num_channels[2], 3, padding=1)
+        self.relu2_1 = nn.ReLU(inplace=True)
+        self.conv2_2 = nn.Conv2d(num_channels[2], num_channels[2], 3, padding=1)
+        self.relu2_2 = nn.ReLU(inplace=True)
+        
+        self.conv2_3 = nn.Conv2d(num_channels[2], num_channels[2], 3, stride=2, padding=1)  # 1/4
+        self.relu2_3 = nn.ReLU(inplace=True)
+
+        # conv3
+        self.conv3_1 = nn.Conv2d(num_channels[2], num_channels[3], 3, padding=1)
+        self.relu3_1 = nn.ReLU(inplace=True)
+        self.conv3_2 = nn.Conv2d(num_channels[3], num_channels[3], 3, padding=1)
+        self.relu3_2 = nn.ReLU(inplace=True)
+        
+        self.conv3_3 = nn.Conv2d(num_channels[3], num_channels[3], 3, stride=2, padding=1)  # 1/8
+        self.relu3_3 = nn.ReLU(inplace=True)
+
+        # conv4
+        self.conv4_1 = nn.Conv2d(num_channels[3], num_channels[4], 3, padding=1)
+        self.relu4_1 = nn.ReLU(inplace=True)
+        self.conv4_2 = nn.Conv2d(num_channels[4], num_channels[4], 3, padding=1)
+        self.relu4_2 = nn.ReLU(inplace=True)
+        
+        self.conv4_3 = nn.Conv2d(num_channels[4], num_channels[4], 3, stride=2, padding=1)  # 1/16
+        self.relu4_3 = nn.ReLU(inplace=True)
+
+        # conv5
+        self.conv5_1 = nn.Conv2d(num_channels[4], num_channels[5], 3, padding=1)
+        self.relu5_1 = nn.ReLU(inplace=True)
+        self.conv5_2 = nn.Conv2d(num_channels[5], num_channels[5], 3, padding=1)
+        self.relu5_2 = nn.ReLU(inplace=True)
+
+    def forward(self, x, multiscale=False):
+        h = x
+        
+        h1 = self.conv1_1(h)
+        h1 = self.relu1_1(h1)
+        h1 = self.conv1_2(h1)
+
+        h2 = self.relu1_2(h1)        
+        h2 = self.conv1_3(h2)
+        h2 = self.relu1_3(h2)
+
+        h2 = self.conv2_1(h2)
+        h2 = self.relu2_1(h2)
+        h2 = self.conv2_2(h2)
+
+        h3 = self.relu2_2(h2)        
+        h3 = self.conv2_3(h3)
+        h3 = self.relu2_3(h3)
+        
+        h3 = self.conv3_1(h3)
+        h3 = self.relu3_1(h3)
+        h3 = self.conv3_2(h3)
+
+        h4 = self.relu3_2(h3)        
+        h4 = self.conv3_3(h4)
+        h4 = self.relu3_3(h4)
+
+        h4 = self.conv4_1(h4)
+        h4 = self.relu4_1(h4)
+        h4 = self.conv4_2(h4)
+
+        h5 = self.relu4_2(h4)
+        h5 = self.conv4_3(h5)
+        h5 = self.relu4_3(h5)
+
+        h5 = self.conv5_1(h5)
+        h5 = self.relu5_1(h5)
+        h5 = self.conv5_2(h5)
+
+        if multiscale is True:
+            return [h1, h2, h3, h4, h5], None
+        else:
+            return h5
+
 # 옵션: 모든 컨볼루션을 pac로 할 것인가. transpose conv의 커널로 앞부분의 필터를 넘길 때 어떻게 넘길것인가, channel_wise 옵션 끄거나 켜기
 class HeadPac(nn.Module):
     def __init__(self, num_channels=[1, 64, 128, 256, 512, 1024]):
@@ -51,20 +140,6 @@ class HeadPac(nn.Module):
         self.conv5_2 = pac.PacConv2d(num_channels[5], num_channels[5], 3, padding=1)
         self.relu5_2 = nn.ReLU(inplace=True)
 
-        self._initialize_weights()
-
-    def _initialize_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                m.weight.data.zero_()
-                if m.bias is not None:
-                    m.bias.data.zero_()
-            if isinstance(m, nn.ConvTranspose2d):
-                assert m.kernel_size[0] == m.kernel_size[1]
-                initial_weight = get_upsampling_weight(
-                    m.in_channels, m.out_channels, m.kernel_size[0])
-                m.weight.data.copy_(initial_weight)
-
     def forward(self, x, multiscale=False):
         h = x
         
@@ -110,7 +185,6 @@ class HeadPac(nn.Module):
         else:
             return h5
 
-
 class BodyFst(nn.Module):
     def __init__(self, max_disparity=192):
         super(BodyFst, self).__init__()
@@ -123,8 +197,9 @@ class BodyFst(nn.Module):
 
         cost_volumes = []
         for i, (left_feature, right_feature) in enumerate(zip(left_features, right_features)):
-            left_feature = F.normalize(left_feature, p=2)
-            right_feature = F.normalize(right_feature, p=2)
+            left_feature = F.normalize(left_feature, p=2, eps=1e-12)
+            # print(i, "th\n shape:", left_feature.shape, "\nfeature:", left_feature, "\n\n") # pac 특성 상 벡터가 sparse하기 때문에 l2 normalize 사용하면...
+            right_feature = F.normalize(right_feature, p=2, eps=1e-12)
             dot_volume = left_feature.permute(0,2,3,1).matmul(right_feature.permute(0,2,1,3)) # dot product, (N, H, W, W)
             ww2wd = []
             for j in range(max_disparity // (2**i)):
@@ -137,11 +212,10 @@ class BodyFst(nn.Module):
         """
 
         return cost_volumes
-            
-            
 
-class Body_acrt(nn.Module):
-    def __init__(self, max_disparity=192):
-        self.max_disparity = max_disparity
+    def cost_volume_fst():
+        return
+    def cost_volume_acrt():
+        return
 
-        # TODO
+        
