@@ -62,6 +62,34 @@ def train(imgL, imgR, disp_true, kernel_coeff=0):
 
     return [loss.data for loss in losses]
 
+def validate(imgL, imgR, disp_true, kernel_coeff=0.0001):
+    head.eval()
+
+    optimizer.zero_grad()
+
+    with torch.no_grad():
+        featuresL, kernelsL = head(imgL.to(p.device), kernel_coeff=kernel_coeff, multiscale=True)
+        featuresR, kernelsR = head(imgR.to(p.device), kernel_coeff=kernel_coeff, multiscale=True)
+        cost_vols = body(featuresL, featuresR, p.train_disparity, kernelsL)
+
+    gt = disp_true.to(p.device)
+    masks = []
+    disps = []
+    for i in range(len(cost_vols)):
+        disp = (F.interpolate(gt, scale_factor=1/2**i, mode='bilinear', align_corners=False))
+        mask = disp < p.train_disparity - 0.5
+        disp[mask == 0] = 0
+        masks.append(mask)
+        disp = ((disp + 0.5) // 2**i).long() # (N, 1, H, W)
+        disp = one_hot(disp, p.train_disparity // 2**i, dim=1)
+        disps.append(disp)
+
+    losses = []
+    for cost_vol, disp, mask in zip(cost_vols, disps, masks):
+        losses.append(criterion(cost_vol, disp, mask))
+
+    return [loss.data for loss in losses]
+
 def test(imgL, imgR, disp_true, kernel_coeff=0.0001):
     head.eval()
 
@@ -104,14 +132,14 @@ except:
 
 if p.mode == 'train':
     train_dataset = Sceneflow('train', transform=transform, crop_size=p.train_size)
-    test_dataset = Sceneflow('test', transform=transform, crop_size=p.train_size)
+    validate_dataset = Sceneflow('test', transform=transform, crop_size=p.train_size)
 
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=p.batch_size, shuffle=True, num_workers=1)
-    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=p.batch_size, shuffle=True, num_workers=1)
+    validate_dataloader = torch.utils.data.DataLoader(validate_dataset, batch_size=p.batch_size, shuffle=True, num_workers=1)
 
     for epoch in range(pre_epoch, 5):
         train_data_iter = iter(train_dataloader)
-        test_data_iter = iter(test_dataloader)
+        validate_data_iter = iter(validate_dataloader)
 
         for step in range(pre_step, len(train_dataloader)):
             data = next(train_data_iter)
@@ -126,16 +154,16 @@ if p.mode == 'train':
                             'optimizer_state_dict': optimizer.state_dict()},
                             p.SAVE_PATH + 'checkpoint.tar')
 
-                test_steps = 100
-                test_losses = [0., 0., 0., 0., 0.]
-                for step in range(test_steps):
-                    data = next(test_data_iter)
-                    cost_vols, losses = test(data['imL'], data['imR'], data['dispL'], p.test_kernel_coeff)
+                validate_steps = 100
+                validate_losses = [0., 0., 0., 0., 0.]
+                for step in range(validate_steps):
+                    data = next(validate_data_iter)
+                    losses = validate(data['imL'], data['imR'], data['dispL'], p.test_kernel_coeff)
 
                     for i in range(len(losses)):
-                        test_losses[i] += losses[i] / test_steps
+                        validate_losses[i] += losses[i] / validate_steps
                 
-                print("\ntest loss\tloss1: {},\tloss2: {},\tloss3: {},\tloss4: {},\tloss5: {}\n".format(*test_losses))
+                print("\nvalidate loss\tloss1: {},\tloss2: {},\tloss3: {},\tloss4: {},\tloss5: {}\n".format(*validate_losses))
 
         pre_step = 0
 
