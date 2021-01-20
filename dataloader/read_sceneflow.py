@@ -1,4 +1,6 @@
+import sys
 import os
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import pickle
 import params
 
@@ -52,14 +54,14 @@ paths_test_img_right = [path for path in paths_test_img if path.find('right') >=
 paths_test_disp_left = [path for path in paths_test_disp if path.find('left') >= 0]
 paths_test_disp_right = [path for path in paths_test_disp if path.find('right') >= 0]
 
-fout_paths_train_img_left = open(p.DATA_PATH + p.paths_train_img_left, 'wb')
-fout_paths_train_img_right = open(p.DATA_PATH + p.paths_train_img_right, 'wb')
-fout_paths_train_disp_left = open(p.DATA_PATH + p.paths_train_disp_left, 'wb')
-fout_paths_train_disp_right = open(p.DATA_PATH + p.paths_train_disp_right, 'wb')
-fout_paths_test_img_left = open(p.DATA_PATH + p.paths_test_img_left, 'wb')
-fout_paths_test_img_right = open(p.DATA_PATH + p.paths_test_img_right, 'wb')
-fout_paths_test_disp_left = open(p.DATA_PATH + p.paths_test_disp_left, 'wb')
-fout_paths_test_disp_right = open(p.DATA_PATH + p.paths_test_disp_right, 'wb')
+fout_paths_train_img_left = open(p.DATA_PATH + p.sceneflow_paths_train_img_left, 'wb')
+fout_paths_train_img_right = open(p.DATA_PATH + p.sceneflow_paths_train_img_right, 'wb')
+fout_paths_train_disp_left = open(p.DATA_PATH + p.sceneflow_paths_train_disp_left, 'wb')
+fout_paths_train_disp_right = open(p.DATA_PATH + p.sceneflow_paths_train_disp_right, 'wb')
+fout_paths_test_img_left = open(p.DATA_PATH + p.sceneflow_paths_test_img_left, 'wb')
+fout_paths_test_img_right = open(p.DATA_PATH + p.sceneflow_paths_test_img_right, 'wb')
+fout_paths_test_disp_left = open(p.DATA_PATH + p.sceneflow_paths_test_disp_left, 'wb')
+fout_paths_test_disp_right = open(p.DATA_PATH + p.sceneflow_paths_test_disp_right, 'wb')
 
 pickle.dump(paths_train_img_left, fout_paths_train_img_left)
 pickle.dump(paths_train_img_right, fout_paths_train_img_right)
@@ -79,11 +81,11 @@ fout_paths_test_img_right.close()
 fout_paths_test_disp_left.close()
 fout_paths_test_disp_right.close()
 
-print("the number of paths in", p.paths_train_img_left, ":", len(paths_train_img_left))
-print("the number of paths in", p.paths_train_img_right, ":", len(paths_train_img_right))
-print("the number of paths in", p.paths_train_disp_left, ":", len(paths_train_disp_left))
-print("the number of paths in", p.paths_train_disp_right, ":", len(paths_train_disp_right))
-print("the number of paths in", p.paths_test_img_left, ":", len(paths_test_img_left))
-print("the number of paths in", p.paths_test_img_right, ":", len(paths_test_img_right))
-print("the number of paths in", p.paths_test_disp_left, ":", len(paths_test_disp_left))
-print("the number of paths in", p.paths_test_disp_right, ":", len(paths_test_disp_right))
+print("the number of paths in", p.sceneflow_paths_train_img_left, ":", len(paths_train_img_left))
+print("the number of paths in", p.sceneflow_paths_train_img_right, ":", len(paths_train_img_right))
+print("the number of paths in", p.sceneflow_paths_train_disp_left, ":", len(paths_train_disp_left))
+print("the number of paths in", p.sceneflow_paths_train_disp_right, ":", len(paths_train_disp_right))
+print("the number of paths in", p.sceneflow_paths_test_img_left, ":", len(paths_test_img_left))
+print("the number of paths in", p.sceneflow_paths_test_img_right, ":", len(paths_test_img_right))
+print("the number of paths in", p.sceneflow_paths_test_disp_left, ":", len(paths_test_disp_left))
+print("the number of paths in", p.sceneflow_paths_test_disp_right, ":", len(paths_test_disp_right))

@@ -15,12 +15,12 @@ class HingeLoss(nn.Module):
 
         assert inputs.shape == labels.shape
 
-        targets = torch.sum(inputs * labels, 1, keepdim=True)
+        targets = torch.sum(inputs * labels, dim=1, keepdim=True)
         loss = inputs - targets + self.margin * (1 - labels)
         loss = F.relu(loss)
 
         if mask is not None:
-            loss *= mask
+            loss *= mask.float()
         
         if self.reduction == 'none':
             return loss

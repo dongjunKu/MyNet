@@ -140,7 +140,7 @@ class HeadPac(nn.Module):
         self.conv5_2 = pac.PacConv2d(num_channels[5], num_channels[5], 3, padding=1)
         self.relu5_2 = nn.ReLU(inplace=True)
 
-    def forward(self, x, multiscale=False):
+    def forward(self, x, kernel_coeff=0.0001, multiscale=False):
         h = x
         
         h1 = self.conv1_1(h)
@@ -186,20 +186,18 @@ class HeadPac(nn.Module):
             return h5
 
 class BodyFst(nn.Module):
-    def __init__(self, max_disparity=192):
+    def __init__(self):
         super(BodyFst, self).__init__()
-        self.max_disparity = max_disparity
 
         # self.deconv4 = pac.PacConvTranspose2d(1, 1, 3, stride=2, padding=1)
 
-    def forward(self, left_features, right_features, kernels=None):
-        max_disparity = min(self.max_disparity, left_features[0].shape[-1])
+    def forward(self, left_features, right_features, max_disparity, kernels=None):
+        max_disparity = min(max_disparity, left_features[0].shape[-1])
 
         cost_volumes = []
         for i, (left_feature, right_feature) in enumerate(zip(left_features, right_features)):
-            left_feature = F.normalize(left_feature, p=2, eps=1e-12)
-            # print(i, "th\n shape:", left_feature.shape, "\nfeature:", left_feature, "\n\n") # pac 특성 상 벡터가 sparse하기 때문에 l2 normalize 사용하면...
-            right_feature = F.normalize(right_feature, p=2, eps=1e-12)
+            left_feature = F.normalize(left_feature, p=2)
+            right_feature = F.normalize(right_feature, p=2)
             dot_volume = left_feature.permute(0,2,3,1).matmul(right_feature.permute(0,2,1,3)) # dot product, (N, H, W, W)
             ww2wd = []
             for j in range(max_disparity // (2**i)):
