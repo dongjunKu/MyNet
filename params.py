@@ -4,21 +4,19 @@ class Params():
         self.SAVE_PATH = "./workspace/Gu/EANet/EANet_0.0/saved_model/"
         self.DATA_PATH = "./workspace/Gu/Dataset/"
 
-        self.mode = 'train'
+        self.mode = 'test'
 
         self.device = 'cuda'
 
         self.batch_size = 1
         
-        self.train_disparity = 192
-        self.train_size = (256, 512)
-        self.train_kernel_coeff = 0
+        self.train_disparity = 192 # train, validate
+        self.train_size = (256, 512) # train, validate
+        self.train_kernel_coeff = 0 # train, validate
 
-        self.test_disparity = 192
-        self.test_size = (256, 512)
-        self.test_kernel_coeff = 0.0001
-
-        self.feature_num_list = [3, 64, 128, 256, 512, 1024]
+        self.test_disparity = 320 # test 320
+        self.test_size = (512, 768) # test (512, 768)
+        self.test_kernel_coeff = 0.1 # test
 
         self.sceneflow_paths_train_img_left = "sceneflow_paths_train_img_left.pkl"
         self.sceneflow_paths_train_img_right = "sceneflow_paths_train_img_right.pkl"

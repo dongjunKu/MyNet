@@ -13,7 +13,7 @@ import params
 
 class Sceneflow(Dataset):
 
-    def __init__(self, setType, transform=None, crop_size=(256,512), root_dir=None): # setType: "train" or "test"
+    def __init__(self, setType, transform=None, normalize=False, crop_size=(256,512), root_dir=None): # setType: "train" or "test"
 
         p = params.Params()
 
@@ -23,6 +23,7 @@ class Sceneflow(Dataset):
             root_dir = root_dir
 
         self.setType = setType
+        self.normalize = normalize
         self.crop_size = crop_size
 
         if setType == "train":
@@ -66,24 +67,25 @@ class Sceneflow(Dataset):
         imageR = Image.open(self.paths_img_right[idx])
         dispL = readPFM(self.paths_disp_left[idx])[0].astype(np.float32).reshape(540,960,1).transpose((2, 0, 1))
         dispR = readPFM(self.paths_disp_right[idx])[0].astype(np.float32).reshape(540,960,1).transpose((2, 0, 1))
-        
-        # randomcrop
-        if self.crop_size is not None:
-            i, j, h, w = transforms.RandomCrop.get_params(imageL, output_size=self.crop_size)
-            imageL = TF.crop(imageL, i, j, h, w)
-            imageR = TF.crop(imageR, i, j, h, w)
-            dispL = dispL[:,i:i+h,j:j+w] # pillow image가 아니므로 이렇게 한다.
-            dispR = dispR[:,i:i+h,j:j+w]
 
         sample = {'imL': imageL, 'imR': imageR, 'dispL': dispL, 'dispR': dispR}
         if self.transform is not None:
             sample['imL']=self.transform(sample['imL'])
             sample['imR']=self.transform(sample['imR'])
+        if self.normalize:
+            sample['imL'] = (sample['imL'] - torch.mean(sample['imL'])) / torch.std(sample['imL'])
+            sample['imR'] = (sample['imR'] - torch.mean(sample['imR'])) / torch.std(sample['imR'])
+        if self.crop_size is not None:
+            i, j, h, w = transforms.RandomCrop.get_params(imageL, output_size=self.crop_size)
+            sample['imL'] = sample['imL'][:,i:i+h,j:j+w]
+            sample['imR'] = sample['imR'][:,i:i+h,j:j+w]
+            sample['dispL'] = sample['dispL'][:,i:i+h,j:j+w]
+            sample['dispR'] = sample['dispR'][:,i:i+h,j:j+w]
         return sample
 
 class Middlebury(Dataset):
 
-    def __init__(self, setType, transform=None, resize=None, crop_size=None, root_dir=None): # setType: "train" or "test"
+    def __init__(self, setType, transform=None, resize=None, normalize=False, crop_size=None, root_dir=None): # setType: "train" or "test"
 
         p = params.Params()
 
@@ -94,6 +96,7 @@ class Middlebury(Dataset):
 
         self.setType = setType
         self.resize = resize
+        self.normalize = normalize
         self.crop_size = crop_size
 
         if setType == "train":
@@ -131,11 +134,20 @@ class Middlebury(Dataset):
         # print(self.paths_img_right[idx])
         # print(self.paths_disp_left[idx])
         # print(self.paths_disp_right[idx])
-        imageL = Image.open(self.paths_img_left[idx])
-        imageR = Image.open(self.paths_img_right[idx])
-        dispL = None
+        imageL_raw = Image.open(self.paths_img_left[idx])
+        imageR_raw = Image.open(self.paths_img_right[idx])
+        dispL_raw = None
         if self.paths_disp_left is not None:
-            dispL = readPFM(self.paths_disp_left[idx])[0].astype(np.float32)
+            dispL_raw = readPFM(self.paths_disp_left[idx])[0].astype(np.float32)
+        
+        imageL = imageL_raw.copy()
+        imageR = imageR_raw.copy()
+        dispL = dispL_raw.copy()
+
+        imageL_raw = torch.unsqueeze(torch.tensor(np.array(imageL_raw)), dim=0)
+        imageR_raw = torch.unsqueeze(torch.tensor(np.array(imageR_raw)), dim=0)
+        if self.paths_disp_left is not None:
+            dispL_raw = torch.unsqueeze(torch.tensor(dispL_raw), dim=0)
         
         # resize
         if self.resize is not None:
@@ -144,19 +156,21 @@ class Middlebury(Dataset):
             if self.paths_disp_left is not None:
                 dispL = resize(dispL, self.resize) / dispL.shape[1] * self.resize[1]
 
-        # randomcrop
+        if dispL is not None:
+            sample = {'imL': imageL, 'imR': imageR, 'dispL': np.expand_dims(dispL, axis=0),
+                        'imL_raw': imageL_raw, 'imR_raw': imageR_raw, 'dispL_raw': np.expand_dims(dispL_raw, axis=0)}
+        else:
+            sample = {'imL': imageL, 'imR': imageR, 'imL_raw': imageL_raw, 'imR_raw': imageR_raw}
+        if self.transform is not None:
+            sample['imL'] = self.transform(sample['imL'])
+            sample['imR'] = self.transform(sample['imR'])
+        if self.normalize:
+            sample['imL'] = (sample['imL'] - torch.mean(sample['imL'])) / torch.std(sample['imL'])
+            sample['imR'] = (sample['imR'] - torch.mean(sample['imR'])) / torch.std(sample['imR'])
         if self.crop_size is not None:
             i, j, h, w = transforms.RandomCrop.get_params(imageL, output_size=self.crop_size)
-            imageL = TF.crop(imageL, i, j, h, w)
-            imageR = TF.crop(imageR, i, j, h, w)
-            if self.paths_disp_left is not None:
-                dispL = dispL[i:i+h,j:j+w] # pillow image가 아니므로 이렇게 한다.
-
-        if dispL is not None:
-            sample = {'imL': imageL, 'imR': imageR, 'dispL': np.expand_dims(dispL, axis=0)}
-        else:
-            sample = {'imL': imageL, 'imR': imageR}
-        if self.transform is not None:
-            sample['imL']=self.transform(sample['imL'])
-            sample['imR']=self.transform(sample['imR'])
+            sample['imL'] = sample['imL'][:,i:i+h,j:j+w]
+            sample['imR'] = sample['imR'][:,i:i+h,j:j+w]
+            sample['dispL'] = sample['dispL'][:,i:i+h,j:j+w]
+            sample['dispR'] = sample['dispR'][:,i:i+h,j:j+w]
         return sample

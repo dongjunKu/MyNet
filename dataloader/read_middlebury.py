@@ -15,7 +15,7 @@ paths_test_img_left = []
 paths_test_img_right = []
 
 # flythings3d
-for root, dirs, files in os.walk(dir_middlebury + 'MiddEval3-data-H/MiddEval3/trainingH'):
+for root, dirs, files in os.walk(dir_middlebury + 'MiddEval3-data-F/MiddEval3/trainingF'):
     for file in sorted(files):
         temp = file.split('.')
         if temp[-1] == 'png':
@@ -23,11 +23,11 @@ for root, dirs, files in os.walk(dir_middlebury + 'MiddEval3-data-H/MiddEval3/tr
                 paths_train_img_left.append(os.path.join(root, file))
             if temp[0] == 'im1':
                 paths_train_img_right.append(os.path.join(root, file))
-for root, dirs, files in os.walk(dir_middlebury + 'MiddEval3-GT0-H/MiddEval3/trainingH'):
+for root, dirs, files in os.walk(dir_middlebury + 'MiddEval3-GT0-F/MiddEval3/trainingF'):
     for file in sorted(files):
         if file.split('.')[-1] == 'pfm':
             paths_train_disp_left.append(os.path.join(root, file))
-for root, dirs, files in os.walk(dir_middlebury + 'MiddEval3-data-H/MiddEval3/testH'):
+for root, dirs, files in os.walk(dir_middlebury + 'MiddEval3-data-F/MiddEval3/testF'):
     for file in sorted(files):
         temp = file.split('.')
         if temp[-1] == 'png':
