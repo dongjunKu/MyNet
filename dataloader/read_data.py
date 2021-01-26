@@ -73,8 +73,8 @@ class Sceneflow(Dataset):
             sample['imL']=self.transform(sample['imL'])
             sample['imR']=self.transform(sample['imR'])
         if self.normalize:
-            sample['imL'] = (sample['imL'] - torch.mean(sample['imL'])) / torch.std(sample['imL'])
-            sample['imR'] = (sample['imR'] - torch.mean(sample['imR'])) / torch.std(sample['imR'])
+            sample['imL'] = (sample['imL'] - torch.mean(sample['imL'].view(sample['imL'].size()[0], -1))) / torch.std(sample['imL'].view(sample['imL'].size()[0], -1))
+            sample['imR'] = (sample['imR'] - torch.mean(sample['imR'].view(sample['imR'].size()[0], -1))) / torch.std(sample['imR'].view(sample['imR'].size()[0], -1))
         if self.crop_size is not None:
             i, j, h, w = transforms.RandomCrop.get_params(imageL, output_size=self.crop_size)
             sample['imL'] = sample['imL'][:,i:i+h,j:j+w]
@@ -144,10 +144,10 @@ class Middlebury(Dataset):
         imageR = imageR_raw.copy()
         dispL = dispL_raw.copy()
 
-        imageL_raw = torch.unsqueeze(torch.tensor(np.array(imageL_raw)), dim=0)
-        imageR_raw = torch.unsqueeze(torch.tensor(np.array(imageR_raw)), dim=0)
+        imageL_raw = torch.tensor(np.transpose(np.array(imageL_raw), (2,0,1)))
+        imageR_raw = torch.tensor(np.transpose(np.array(imageR_raw), (2,0,1)))
         if self.paths_disp_left is not None:
-            dispL_raw = torch.unsqueeze(torch.tensor(dispL_raw), dim=0)
+            dispL_raw = torch.tensor(np.expand_dims(dispL_raw, axis=0))
         
         # resize
         if self.resize is not None:
@@ -158,15 +158,15 @@ class Middlebury(Dataset):
 
         if dispL is not None:
             sample = {'imL': imageL, 'imR': imageR, 'dispL': np.expand_dims(dispL, axis=0),
-                        'imL_raw': imageL_raw, 'imR_raw': imageR_raw, 'dispL_raw': np.expand_dims(dispL_raw, axis=0)}
+                        'imL_raw': imageL_raw, 'imR_raw': imageR_raw, 'dispL_raw': dispL_raw}
         else:
             sample = {'imL': imageL, 'imR': imageR, 'imL_raw': imageL_raw, 'imR_raw': imageR_raw}
         if self.transform is not None:
             sample['imL'] = self.transform(sample['imL'])
             sample['imR'] = self.transform(sample['imR'])
         if self.normalize:
-            sample['imL'] = (sample['imL'] - torch.mean(sample['imL'])) / torch.std(sample['imL'])
-            sample['imR'] = (sample['imR'] - torch.mean(sample['imR'])) / torch.std(sample['imR'])
+            sample['imL'] = (sample['imL'] - torch.mean(sample['imL'].view(sample['imL'].size()[0], -1))) / torch.std(sample['imL'].view(sample['imL'].size()[0], -1))
+            sample['imR'] = (sample['imR'] - torch.mean(sample['imR'].view(sample['imR'].size()[0], -1))) / torch.std(sample['imR'].view(sample['imR'].size()[0], -1))
         if self.crop_size is not None:
             i, j, h, w = transforms.RandomCrop.get_params(imageL, output_size=self.crop_size)
             sample['imL'] = sample['imL'][:,i:i+h,j:j+w]
